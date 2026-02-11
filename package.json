@@ -1,0 +1,14 @@
+{
+  "name": "notifications-service",
+  "version": "1.0.0",
+  "description": "Microservicio de notificaciones y alertas para simulador de coches eléctricos",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": ["notifications", "alerts", "microservice", "ev-charging"],
+  "author": "Jaime",
+  "license": "ISC",
+  "type": "commonjs"
+}
