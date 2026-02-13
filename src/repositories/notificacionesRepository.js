@@ -1,9 +1,5 @@
 const pool = require('../db/pool');
 
-function buildDedupKey({ tipo, idEntidad, idConductor }) {
-  return `${tipo}:${idEntidad}:${idConductor}`;
-}
-
 async function findNotificacionPendienteByDedupKey(dedupKey) {
   const q = `
     SELECT * FROM notificaciones
@@ -56,7 +52,6 @@ async function listNotificacionesByConductor(idConductor, estado = null) {
 }
 
 module.exports = {
-  buildDedupKey,
   findNotificacionPendienteByDedupKey,
   createNotificacion,
   updateNotificacionMensaje,
