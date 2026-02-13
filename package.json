@@ -5,10 +5,28 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "db:smoke": "node scripts/db-smoke-test.js"
   },
-  "keywords": ["notifications", "alerts", "microservice", "ev-charging"],
+  "keywords": [
+    "notifications",
+    "alerts",
+    "microservice",
+    "ev-charging"
+  ],
   "author": "Jaime",
   "license": "ISC",
-  "type": "commonjs"
+  "type": "commonjs",
+  "dependencies": {
+    "dotenv": "^17.3.1",
+    "pg": "^8.18.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/875192/NotificationsService_Sistemas_Tecnolog-as_Web.git"
+  },
+  "bugs": {
+    "url": "https://github.com/875192/NotificationsService_Sistemas_Tecnolog-as_Web/issues"
+  },
+  "homepage": "https://github.com/875192/NotificationsService_Sistemas_Tecnolog-as_Web#readme"
 }
