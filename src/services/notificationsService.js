@@ -2,13 +2,14 @@
 // Usa reglas puras (rules.js) + repositorios (BD).
 // Las rutas REST y los listeners de Redis llaman aquí.
 
-const { severidadMayor, puedeTransicionar, buildDedupKey } = require("./rules");
+const { severidadMayor, buildDedupKey } = require("./rules");
 
 const {
   findAlertaActivaByTipoEntidad,
   updateAlertaActivaReplace,
   createAlerta,
   cerrarAlerta,
+  getAlertaById, // necesario para cerrarAlertaSiActiva idempotente
 } = require("../repositories/alertasRepository");
 
 const {
@@ -16,6 +17,7 @@ const {
   createNotificacion,
   updateNotificacionMensaje,
   setEstadoNotificacion,
+  getNotificacionById, // necesario para ack/resolver idempotentes
 } = require("../repositories/notificacionesRepository");
 
 // ─── Procesamiento principal (idempotente) ───
@@ -59,21 +61,37 @@ async function procesarEvento({ tipo, severidad, idEntidad, idConductor, context
 }
 
 // ─── Transiciones de estado (notificación) ───
+// Idempotentes y sin requerir estadoActual desde fuera.
 
-async function ackNotificacion(idNotificacion, estadoActual) {
-  if (!puedeTransicionar(estadoActual, "ACK")) return null;
+async function ackNotificacion(idNotificacion) {
+  const notif = await getNotificacionById(idNotificacion);
+  if (!notif) return null;
+
+  // Ya ACK o RESUELTA -> idempotente
+  if (notif.estado === "ACK" || notif.estado === "RESUELTA") return notif;
+
   return await setEstadoNotificacion(idNotificacion, "ACK");
 }
 
-async function resolverNotificacion(idNotificacion, estadoActual) {
-  if (!puedeTransicionar(estadoActual, "RESUELTA")) return null;
+async function resolverNotificacion(idNotificacion) {
+  const notif = await getNotificacionById(idNotificacion);
+  if (!notif) return null;
+
+  // Ya RESUELTA -> idempotente
+  if (notif.estado === "RESUELTA") return notif;
+
   return await setEstadoNotificacion(idNotificacion, "RESUELTA");
 }
 
 // ─── Cerrar alerta ───
+// Idempotente y sin requerir estadoActual desde fuera.
 
-async function cerrarAlertaSiActiva(idAlerta, estadoActual) {
-  if (estadoActual === "CERRADA") return null;
+async function cerrarAlertaSiActiva(idAlerta) {
+  const alerta = await getAlertaById(idAlerta);
+  if (!alerta) return null;
+
+  if (alerta.estado === "CERRADA") return alerta; // idempotente
+
   return await cerrarAlerta(idAlerta);
 }
 

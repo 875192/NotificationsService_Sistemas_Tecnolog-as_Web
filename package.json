@@ -4,9 +4,8 @@
   "description": "Microservicio de notificaciones y alertas para simulador de coches eléctricos",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js",
-    "db:smoke": "node scripts/db-smoke-test.js"
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
   },
   "keywords": [
     "notifications",
@@ -19,6 +18,7 @@
   "type": "commonjs",
   "dependencies": {
     "dotenv": "^17.3.1",
+    "express": "^5.2.1",
     "pg": "^8.18.0"
   },
   "repository": {
@@ -28,5 +28,6 @@
   "bugs": {
     "url": "https://github.com/875192/NotificationsService_Sistemas_Tecnolog-as_Web/issues"
   },
-  "homepage": "https://github.com/875192/NotificationsService_Sistemas_Tecnolog-as_Web#readme"
+  "homepage": "https://github.com/875192/NotificationsService_Sistemas_Tecnolog-as_Web#readme",
+  "devDependencies": {}
 }

@@ -1,28 +1,22 @@
-// ── Aplicación HTTP ──
-// Crea el servidor HTTP y enruta las peticiones.
-// Separado de server.js para mantener responsabilidades claras.
+const express = require("express");
 
-const http = require("http");
-const handleHealth = require("./routes/health");
+const healthRoutes = require("./routes/health");
+const notificacionesRoutes = require("./routes/notificaciones");
+const alertasRoutes = require("./routes/alertas");
 
-// Helper para enviar respuestas JSON
-function sendJSON(res, statusCode, data) {
-  res.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
-  res.end(JSON.stringify(data));
-}
+const { notFoundHandler, errorHandler } = require("./middleware/errorHandler");
 
-// Router principal
-function onRequest(req, res) {
-  // GET /health
-  if (req.method === "GET" && req.url === "/health") {
-    return handleHealth(req, res);
-  }
+const app = express();
 
-  // 404 — ruta no encontrada
-  sendJSON(res, 404, { error: "Not Found" });
-}
+app.use(express.json());
 
-// Crear y exportar el servidor
-const server = http.createServer(onRequest);
+// Rutas
+app.use(healthRoutes); // expone GET /health
+app.use("/api/notificaciones", notificacionesRoutes);
+app.use("/api/alertas", alertasRoutes);
 
-module.exports = server;
+// 404 + errores
+app.use(notFoundHandler);
+app.use(errorHandler);
+
+module.exports = app;

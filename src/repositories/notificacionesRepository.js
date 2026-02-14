@@ -42,6 +42,14 @@ async function setEstadoNotificacion(idNotificacion, estado) {
   return rows[0] ?? null;
 }
 
+async function getNotificacionById(idNotificacion) {
+  const { rows } = await pool.query(
+    `SELECT * FROM notificaciones WHERE id_notificacion = $1`,
+    [idNotificacion]
+  );
+  return rows[0] ?? null;
+} 
+
 async function listNotificacionesByConductor(idConductor, estado = null) {
   const q = estado
     ? `SELECT * FROM notificaciones WHERE id_conductor=$1 AND estado=$2::estado_notificacion ORDER BY fecha_actualizacion_notificacion DESC`
@@ -56,5 +64,6 @@ module.exports = {
   createNotificacion,
   updateNotificacionMensaje,
   setEstadoNotificacion,
+  getNotificacionById,
   listNotificacionesByConductor,
 };
