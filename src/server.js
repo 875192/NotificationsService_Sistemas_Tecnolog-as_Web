@@ -5,11 +5,12 @@ const http = require("http");
 
 const config = require("./config");
 const app = require("./app");
- 
-const { attachWebSocketServer } = require("./ws/wsServer");
 
+const { attachWebSocketServer } = require("./ws/wsServer");
 // Arrancamos el subscriber de Redis (escucha eventos del orquestador)
 const { startRedisSubscriber, stopRedisSubscriber } = require("./redis/subscriber");
+const { stopPublisher } = require("./redis/publisher");
+
 
 // Creamos servidor HTTP para compartir con WS
 const httpServer = http.createServer(app);
@@ -34,6 +35,7 @@ httpServer.listen(config.port, async /* <-- cambiar esto */ () => {
 //QUITAR ESTO AHORA
 async function shutdown() {
   await stopRedisSubscriber();
+  await stopPublisher();
   httpServer.close(() => process.exit(0));
 }
 

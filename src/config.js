@@ -21,6 +21,9 @@ const config = {
       "zonas.eventos",
       "postes.eventos",
     ],
+
+    // canal para emitir eventos (pub)
+    publishChannel: process.env.REDIS_NOTIF_CHANNEL || "notificaciones.eventos",
   }
 };
 

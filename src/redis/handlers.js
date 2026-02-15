@@ -4,6 +4,7 @@
 
 const { procesarEvento } = require("../services/notificationsService");
 const { emitToConductor } = require("../ws/hub");
+const { publishEvent } = require("../redis/publisher");
 
 // --- Helpers ---
 function unwrap(payload) {
@@ -145,14 +146,29 @@ async function handleRedisEvent(channel, payload) {
   // Si no hay condición de alerta/notificación, ignoramos sin error
   if (!evt) {
     // si quieres, deja un log suave:
-    // console.log("[redis] ignored", channel, eventType || "");
+    console.log("[redis] ignored", channel, eventType || "");
     return;
   }
 
   // 2) Ejecutar lógica (dedup, replace, etc.)
   const result = await procesarEvento(evt);
+  
+  // 3) Publicar eventos de alerta/notificación a Redis (para otros servicios o auditoría)
+  //Alertas
+  if (result.alertaCreada) {
+    await publishEvent("AlertaCreada", result.alerta);
+  } else {
+    await publishEvent("AlertaActualizada", result.alerta);
+  }
 
-  // 3) Emitir por WebSocket al conductor
+  //Notificacines
+  if (result.notifCreada) {
+    await publishEvent("NotificacionCreada", result.notif);
+  } else {
+    await publishEvent("NotificacionActualizada", result.notif);
+  }
+
+  // 4) Emitir por WebSocket al conductor
   const wsType = result.notifCreada ? "NOTIFICACION_CREADA" : "NOTIFICACION_ACTUALIZADA";
   emitToConductor(result.notif.id_conductor, {
     type: wsType,
@@ -165,7 +181,7 @@ async function handleRedisEvent(channel, payload) {
     },
   });
 
-  // 4) Log final (para ver que ya está actuando)
+  // 5) Log final (para ver que ya está actuando)
   console.log("[redis] processed", {
     channel,
     businessTipo: evt.tipo,
