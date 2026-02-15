@@ -21,6 +21,7 @@
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "pg": "^8.18.0",
+    "redis": "^5.10.0",
     "ws": "^8.19.0"
   },
   "repository": {
@@ -30,6 +31,5 @@
   "bugs": {
     "url": "https://github.com/875192/NotificationsService_Sistemas_Tecnolog-as_Web/issues"
   },
-  "homepage": "https://github.com/875192/NotificationsService_Sistemas_Tecnolog-as_Web#readme",
-  "devDependencies": {}
+  "homepage": "https://github.com/875192/NotificationsService_Sistemas_Tecnolog-as_Web#readme"
 }

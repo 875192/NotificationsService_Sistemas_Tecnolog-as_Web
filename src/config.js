@@ -11,6 +11,17 @@ const config = {
   // Metadatos del servicio
   serviceName: "notifications-service",
   version: "1.0.0",
+
+  redis: {
+    url: process.env.REDIS_URL || "redis://localhost:6379",
+
+    // Canales que consume notifications-service (sub)
+    subscribeChannels: [
+      "vehiculos.eventos",
+      "zonas.eventos",
+      "postes.eventos",
+    ],
+  }
 };
 
 module.exports = config;
