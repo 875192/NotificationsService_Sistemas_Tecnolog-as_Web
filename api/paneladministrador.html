@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Panel de Administrador - Notificaciones</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #ffffff;
+      color: #330000;
+      margin: 20px;
+    }
+    h1 {
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 10px;
+    }
+    .status-bar {
+      margin-bottom: 20px;
+      padding: 15px;
+      border: 1px solid #ccc;
+      background-color: #f9f9f9;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-radius: 4px;
+    }
+    .status-indicator {
+      font-weight: bold;
+    }
+    .status-connected { color: green; }
+    .status-disconnected { color: red; }
+    
+    .controls {
+      margin-bottom: 20px;
+    }
+    #searchInput {
+      padding: 10px;
+      width: 400px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 12px;
+      text-align: left;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    tr:nth-child(even) {
+      background-color: #fcfcfc;
+    }
+    .sev-INFO { color: #0056b3; }
+    .sev-WARNING { color: #b38600; font-weight: bold; }
+    .sev-CRITICAL { color: #cc0000; font-weight: bold; }
+    
+    .badge {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+      color: white;
+    }
+    .badge-PENDIENTE { background-color: #e67e22; }
+    .badge-ACK { background-color: #3498db; }
+    .badge-RESUELTA { background-color: #2ecc71; }
+    
+    .btn-ack {
+      background-color: #3498db;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .btn-ack:hover {
+      background-color: #2980b9;
+    }
+
+    /* ── Sección Estado del Microservicio ── */
+    .section-title {
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 8px;
+      color: #333;
+    }
+    .health-panel {
+      padding: 14px 18px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      font-size: 14px;
+    }
+    .health-panel.health-ok {
+      background-color: #eafaf1;
+      border-color: #2ecc71;
+    }
+    .health-panel.health-degraded {
+      background-color: #fdf2f2;
+      border-color: #cc0000;
+    }
+    .health-panel.health-unknown {
+      background-color: #f9f9f9;
+      border-color: #ccc;
+    }
+    .health-status-text {
+      font-weight: bold;
+      font-size: 15px;
+      min-width: 100px;
+    }
+    .health-ok .health-status-text { color: #27ae60; }
+    .health-degraded .health-status-text { color: #cc0000; }
+    .health-unknown .health-status-text { color: #888; }
+    .health-check { display: flex; align-items: center; gap: 6px; }
+    .check-ok { color: #27ae60; font-weight: bold; }
+    .check-error { color: #cc0000; font-weight: bold; }
+    .check-unknown { color: #888; }
+    .health-timestamp { margin-left: auto; color: #888; font-size: 12px; }
+  </style>
+</head>
+<body>
+
+  <h1>Panel de Administrador</h1>
+
+  <div class="status-bar">
+    <div>
+      Estado del WebSocket: <span id="wsStatus" class="status-indicator status-disconnected">Desconectado</span>
+    </div>
+    <div>
+      Última actualización: <span id="lastUpdate">-</span>
+    </div>
+  </div>
+
+  <div>
+    <div class="section-title">Estado del Microservicio</div>
+    <div id="healthPanel" class="health-panel health-unknown">
+      <span class="health-status-text" id="healthStatusText">Sin datos</span>
+      <div class="health-check">
+        PostgreSQL: <span id="checkPostgres" class="check-unknown">-</span>
+      </div>
+      <div class="health-check">
+        Redis: <span id="checkRedis" class="check-unknown">-</span>
+      </div>
+      <span class="health-timestamp">Último reporte: <span id="healthTimestamp">-</span></span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <input type="text" id="searchInput" placeholder="Buscar por entidad, tipo o mensaje..." onkeyup="filterTable()">
+  </div>
+
+  <table id="notificationsTable">
+    <thead>
+      <tr>
+        <th>Fecha</th>
+        <th>Tipo de Alerta</th>
+        <th>Severidad</th>
+        <th>Entidad</th>
+        <th>Estado Notif.</th>
+        <th>Mensaje</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody">
+      <!-- Datos inyectados por JS -->
+    </tbody>
+  </table>
+
+  <script>
+    // --- Configuración ---
+    const PORT = 3001;
+    const API_URL = `http://localhost:${PORT}/api`;
+    const WS_URL = `ws://localhost:${PORT}/ws`;
+
+    let allNotifications = [];
+
+    // --- DOM Elements ---
+    const wsStatusEl = document.getElementById('wsStatus');
+    const lastUpdateEl = document.getElementById('lastUpdate');
+    const tableBody = document.getElementById('tableBody');
+    const searchInput = document.getElementById('searchInput');
+
+    // --- Inicialización ---
+    async function init() {
+      await Promise.all([fetchNotifications(), fetchHealthStatus()]);
+      connectWebSocket();
+    }
+
+    // --- Cargar Notificaciones REST ---
+    async function fetchNotifications() {
+      try {
+        const response = await fetch(`${API_URL}/notificaciones`);
+        if (!response.ok) throw new Error('Error al HTTP: ' + response.statusText);
+        
+        allNotifications = await response.json();
+        renderTable(allNotifications);
+        updateLastUpdateTime();
+      } catch (error) {
+        console.error('Fetch Error:', error);
+        wsStatusEl.textContent = 'API Inaccesible';
+        wsStatusEl.className = 'status-indicator status-disconnected';
+      }
+    }
+
+    // --- Configurar WebSocket ---
+    function connectWebSocket() {
+      const ws = new WebSocket(WS_URL);
+
+      ws.onopen = () => {
+        wsStatusEl.textContent = 'Conectado ✓';
+        wsStatusEl.className = 'status-indicator status-connected';
+      };
+
+      ws.onclose = () => {
+        wsStatusEl.textContent = 'Desconectado (Reintentando...)';
+        wsStatusEl.className = 'status-indicator status-disconnected';
+        setTimeout(connectWebSocket, 3000);
+      };
+
+      ws.onerror = (err) => {
+        console.error('Error de WebSocket:', err);
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          console.log('Mensaje WS recibido en Panel Admin:', payload);
+
+          if (payload.type === 'SERVICE_DEGRADED' || payload.type === 'SERVICE_OK') {
+            updateHealthPanel(payload);
+          } else {
+            fetchNotifications();
+          }
+        } catch (e) {
+          console.error('Error procesando mensaje WS:', e);
+        }
+      };
+    }
+
+    // --- Renderizar Tabla ---
+    function renderTable(data) {
+      tableBody.innerHTML = '';
+      
+      data.forEach(notif => {
+        const tr = document.createElement('tr');
+        
+        const fecha = new Date(notif.fecha_creacion_notificacion).toLocaleString('es-ES');
+        const tipoAlerta = notif.tipo_alerta || 'N/A';
+        const severidad = notif.severidad || 'INFO';
+        const entidad = notif.id_entidad || 'N/A';
+        const estado = notif.estado || 'PENDIENTE';
+        const mensaje = notif.mensaje || '';
+        
+        const btnAction = estado === 'PENDIENTE' 
+          ? `<button onclick="marcarAck('${notif.id_notificacion}')" class="btn-ack">ACK</button>` 
+          : '-';
+
+        tr.innerHTML = `
+          <td>${fecha}</td>
+          <td>${tipoAlerta}</td>
+          <td class="sev-${severidad}">${severidad}</td>
+          <td>${entidad}</td>
+          <td><span class="badge badge-${estado}">${estado}</span></td>
+          <td>${mensaje}</td>
+          <td>${btnAction}</td>
+        `;
+        tableBody.appendChild(tr);
+      });
+    }
+
+    // --- Filtro en Vivo ---
+    function filterTable() {
+      const query = searchInput.value.toLowerCase();
+      
+      const filtrado = allNotifications.filter(notif => {
+        const textToSearch = `
+          ${notif.tipo_alerta || ''} 
+          ${notif.id_entidad || ''} 
+          ${notif.mensaje || ''}
+          ${notif.estado || ''}
+        `.toLowerCase();
+        
+        return textToSearch.includes(query);
+      });
+      
+      renderTable(filtrado);
+    }
+
+    function updateLastUpdateTime() {
+      lastUpdateEl.textContent = new Date().toLocaleTimeString('es-ES');
+    }
+
+    // --- Estado del Microservicio ---
+    async function fetchHealthStatus() {
+      try {
+        const response = await fetch(`http://localhost:${PORT}/health`);
+        const data = await response.json();
+        updateHealthPanel({
+          type: data.status === 'ok' ? 'SERVICE_OK' : 'SERVICE_DEGRADED',
+          checks: data.checks,
+          timestamp: data.timestamp,
+        });
+      } catch {
+        // Si el servidor no responde, el panel queda en "Sin datos"
+      }
+    }
+
+    function updateHealthPanel(payload) {
+      const panel = document.getElementById('healthPanel');
+      const statusText = document.getElementById('healthStatusText');
+      const checkPostgres = document.getElementById('checkPostgres');
+      const checkRedis = document.getElementById('checkRedis');
+      const healthTimestamp = document.getElementById('healthTimestamp');
+
+      const isOk = payload.type === 'SERVICE_OK';
+
+      panel.className = `health-panel ${isOk ? 'health-ok' : 'health-degraded'}`;
+      statusText.textContent = isOk ? 'Operativo' : 'Degradado';
+
+      const renderCheck = (el, value) => {
+        el.textContent = value === 'ok' ? 'OK' : 'ERROR';
+        el.className = value === 'ok' ? 'check-ok' : 'check-error';
+      };
+
+      renderCheck(checkPostgres, payload.checks?.postgres);
+      renderCheck(checkRedis, payload.checks?.redis);
+      healthTimestamp.textContent = new Date(payload.timestamp).toLocaleTimeString('es-ES');
+    }
+
+    // --- Acciones REST ---
+    async function marcarAck(idNotificacion) {
+      try {
+        const response = await fetch(`${API_URL}/notificaciones/${idNotificacion}/ack`, {
+          method: 'POST'
+        });
+        if (!response.ok) throw new Error('Error al hacer ACK');
+        
+        // No hace falta recargar la tabla manualmente si el WebSocket
+        // está funcionando, porque el backend emitirá un evento
+        // de "NOTIFICACION_ACK" y la tabla se actualizará sola.
+      } catch (error) {
+        console.error('Error ACK:', error);
+        alert('Hubo un error al intentar marcar la notificación como recibida (ACK).');
+      }
+    }
+
+    // Start
+    init();
+  </script>
+</body>
+</html>

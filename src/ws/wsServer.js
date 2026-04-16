@@ -1,6 +1,5 @@
 const { WebSocketServer } = require("ws");
-const url = require("url");
-const { subscribe, unsubscribe } = require("./hub");
+const { addClient, removeClient } = require("./hub");
 
 function safeJsonParse(str) {
   try { return JSON.parse(str); } catch { return null; }
@@ -9,24 +8,13 @@ function safeJsonParse(str) {
 function attachWebSocketServer(httpServer) {
   const wss = new WebSocketServer({
     server: httpServer,
-    // Recomendado: limitar a una ruta concreta
     path: "/ws",
   });
 
   wss.on("connection", (ws, req) => {
-    // 1) Suscripción por query: ws://host:3000/ws?idConductor=conductor-9
-    const parsed = url.parse(req.url, true);
-    const idConductor = parsed.query.idConductor;
-
-    if (idConductor) {
-      subscribe(idConductor, ws);
-      ws.send(JSON.stringify({ type: "SUBSCRIBED", idConductor }));
-    } else {
-      ws.send(JSON.stringify({
-        type: "NEED_SUBSCRIBE",
-        message: "Envía {type:'SUBSCRIBE', idConductor:'...'}",
-      }));
-    }
+    // Registrar cliente admin
+    addClient(ws);
+    ws.send(JSON.stringify({ type: "CONNECTED", message: "Conectado al panel de administración" }));
 
     // Keepalive simple (ping/pong)
     ws.isAlive = true;
@@ -38,16 +26,6 @@ function attachWebSocketServer(httpServer) {
         return ws.send(JSON.stringify({ type: "ERROR", message: "Mensaje inválido (JSON)" }));
       }
 
-      if (msg.type === "SUBSCRIBE") {
-        if (!msg.idConductor || typeof msg.idConductor !== "string") {
-          return ws.send(JSON.stringify({ type: "ERROR", message: "idConductor requerido" }));
-        }
-        // Si ya estaba suscrito a otro, limpiamos y re-suscribimos
-        unsubscribe(ws);
-        subscribe(msg.idConductor, ws);
-        return ws.send(JSON.stringify({ type: "SUBSCRIBED", idConductor: msg.idConductor }));
-      }
-
       if (msg.type === "PING") {
         return ws.send(JSON.stringify({ type: "PONG" }));
       }
@@ -56,11 +34,11 @@ function attachWebSocketServer(httpServer) {
     });
 
     ws.on("close", () => {
-      unsubscribe(ws);
+      removeClient(ws);
     });
 
     ws.on("error", () => {
-      unsubscribe(ws);
+      removeClient(ws);
     });
   });
 

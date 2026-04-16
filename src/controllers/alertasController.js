@@ -1,4 +1,5 @@
 const { cerrarAlertaSiActiva } = require("../services/notificationsService");
+const { listAlertasActivas } = require("../repositories/alertasRepository");
 
 async function postCerrar(req, res, next) {
   try {
@@ -11,4 +12,13 @@ async function postCerrar(req, res, next) {
   }
 }
 
-module.exports = { postCerrar };
+async function getAll(req, res, next) {
+  try {
+    const rows = await listAlertasActivas();
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { postCerrar, getAll };

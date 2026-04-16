@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS notificaciones (
   id_notificacion UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
   id_alerta    UUID NOT NULL REFERENCES alertas(id_alerta) ON DELETE CASCADE,
-  id_conductor TEXT NOT NULL,
+
 
   estado  estado_notificacion NOT NULL DEFAULT 'PENDIENTE',
   mensaje TEXT NOT NULL,
@@ -76,13 +76,7 @@ CREATE TABLE IF NOT EXISTS notificaciones (
 -- ÍNDICES "normales" (rendimiento)
 -- ------------------------------------------------------------
 
--- Buscar notificaciones por conductor
-CREATE INDEX IF NOT EXISTS idx_notif_conductor
-  ON notificaciones (id_conductor);
 
--- Filtrar por conductor + estado (típico en UI)
-CREATE INDEX IF NOT EXISTS idx_notif_conductor_estado
-  ON notificaciones (id_conductor, estado);
 
 -- Filtrar alertas por estado (ACTIVA/CERRADA)
 CREATE INDEX IF NOT EXISTS idx_alertas_estado

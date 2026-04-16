@@ -27,7 +27,7 @@ const {
 //   3. Severidad solo escala, nunca baja.
 //   4. Llamar 2 veces con el mismo evento da el mismo resultado.
 
-async function procesarEvento({ tipo, severidad, idEntidad, idConductor, contexto, mensaje }) {
+async function procesarEvento({ tipo, severidad, idEntidad, contexto, mensaje }) {
   // ── 1. Alerta: buscar ACTIVA o crear ──
   let alerta = await findAlertaActivaByTipoEntidad(tipo, idEntidad);
   let alertaCreada = false;
@@ -40,8 +40,8 @@ async function procesarEvento({ tipo, severidad, idEntidad, idConductor, context
     alertaCreada = true;
   }
 
-  // ── 2. Notificación: deduplicar por tipo+entidad+conductor ──
-  const dedupKey = buildDedupKey({ tipo, idEntidad, idConductor });
+  // ── 2. Notificación: deduplicar por tipo+entidad ──
+  const dedupKey = buildDedupKey({ tipo, idEntidad });
   let notif = await findNotificacionPendienteByDedupKey(dedupKey);
   let notifCreada = false;
 
@@ -50,7 +50,6 @@ async function procesarEvento({ tipo, severidad, idEntidad, idConductor, context
   } else {
     notif = await createNotificacion({
       idAlerta: alerta.id_alerta,
-      idConductor,
       mensaje,
       dedupKey,
     });

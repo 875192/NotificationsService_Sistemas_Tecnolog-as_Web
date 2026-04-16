@@ -1,42 +1,25 @@
-// Mantiene un mapa: idConductor -> Set(conexiones WebSocket)
+// ── Hub WebSocket (broadcast a todos los admin) ──
+// Mantiene un Set global de conexiones WebSocket admin.
 
-const subscribers = new Map(); // Map<string, Set<WebSocket>>
+const clients = new Set(); // Set<WebSocket>
 
-function subscribe(idConductor, ws) {
-  if (!idConductor) return;
-
-  let set = subscribers.get(idConductor);
-  if (!set) {
-    set = new Set();
-    subscribers.set(idConductor, set);
-  }
-  set.add(ws);
-
-  // Guardamos para poder limpiar en close
-  ws.__idConductor = idConductor;
+function addClient(ws) {
+  clients.add(ws);
+  console.log(`[ws-hub] client connected (total: ${clients.size})`);
 }
 
-function unsubscribe(ws) {
-  const idConductor = ws.__idConductor;
-  if (!idConductor) return;
-
-  const set = subscribers.get(idConductor);
-  if (!set) return;
-
-  set.delete(ws);
-  if (set.size === 0) subscribers.delete(idConductor);
-
-  ws.__idConductor = undefined;
+function removeClient(ws) {
+  clients.delete(ws);
+  console.log(`[ws-hub] client disconnected (total: ${clients.size})`);
 }
 
-function emitToConductor(idConductor, payload) {
-  const set = subscribers.get(idConductor);
-  if (!set || set.size === 0) return 0;
+function broadcast(payload) {
+  if (clients.size === 0) return 0;
 
   const msg = JSON.stringify(payload);
   let sent = 0;
 
-  for (const ws of set) {
+  for (const ws of clients) {
     if (ws.readyState === ws.OPEN) {
       ws.send(msg);
       sent++;
@@ -46,7 +29,7 @@ function emitToConductor(idConductor, payload) {
 }
 
 module.exports = {
-  subscribe,
-  unsubscribe,
-  emitToConductor,
+  addClient,
+  removeClient,
+  broadcast,
 };

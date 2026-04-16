@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: notifications_user
       POSTGRES_PASSWORD: notifications_pass
     ports:
-      - "5433:5432" #para pgAdmin/psql
+      - "5435:5432" #para pgAdmin/psql
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./db/init:/docker-entrypoint-initdb.d:ro
@@ -40,6 +40,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     restart: unless-stopped
 
 volumes:

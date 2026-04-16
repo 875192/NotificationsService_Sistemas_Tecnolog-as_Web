@@ -12,7 +12,6 @@ function errorHandler(err, req, res, next) { // eslint-disable-line
 
   if (err.details) payload.details = err.details;
 
-  // Si viene de Postgres (pg) suele traer code (ej: 23505)
   if (err.code) payload.db = { code: err.code };
 
   res.status(status).json(payload);

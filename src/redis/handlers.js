@@ -1,9 +1,9 @@
 // ── Redis handlers (modo acción) ──
 // Convierte eventos Redis (vehículos/zonas/postes) -> procesarEvento()
-// y opcionalmente emite por WebSocket al conductor.
+// y emite por WebSocket al panel de administración (broadcast).
 
 const { procesarEvento } = require("../services/notificationsService");
-const { emitToConductor } = require("../ws/hub");
+const { broadcast } = require("../ws/hub");
 const { publishEvent } = require("../redis/publisher");
 
 // --- Helpers ---
@@ -16,9 +16,7 @@ function unwrap(payload) {
   return { eventType: null, data: payload, raw: payload };
 }
 
-function fallbackConductorId() {
-  return process.env.FALLBACK_CONDUCTOR_ID || null;
-}
+
 
 function isNumber(x) {
   return typeof x === "number" && !Number.isNaN(x);
@@ -28,14 +26,11 @@ function isNumber(x) {
 // 1) vehiculos.eventos  (ej: VehiculoEstadoCambiado con idVehiculo + nivelBateria)
 function mapVehiculos(data) {
   const idVehiculo = data?.idVehiculo;
-  const nivelBateria = data?.nivelBateria; // según memoria de Vehículos
+  const nivelBateria = data?.nivelBateria;
   const estadoNuevo = data?.estadoNuevo;
 
   if (!idVehiculo) return null;
 
-  // Regla simple (ajústala si tu equipo define umbrales distintos):
-  // - CRITICAL si SIN_BATERIA o batería <= 2
-  // - WARNING si batería <= 10
   let severidad = null;
 
   if (estadoNuevo === "SIN_BATERIA") severidad = "CRITICAL";
@@ -44,14 +39,10 @@ function mapVehiculos(data) {
 
   if (!severidad) return null;
 
-  const idConductor = data?.idConductor || fallbackConductorId();
-  if (!idConductor) return null;
-
   return {
     tipo: "VEHICULO_SIN_BATERIA",
     severidad,
     idEntidad: idVehiculo,
-    idConductor,
     contexto: { nivelBateria, estadoNuevo },
     mensaje:
       severidad === "CRITICAL"
@@ -62,7 +53,6 @@ function mapVehiculos(data) {
 
 // 2) zonas.eventos (formato envoltorio + motivo en raw, ej RESERVA_FINALIZADA)
 function mapZonas(eventType, raw) {
-  // raw: { tipo, fecha, motivo, datos:{...} }
   if (eventType !== "RESERVA_FINALIZADA") return null;
   if (raw?.motivo !== "EXPIRACION_TIEMPO") return null;
 
@@ -70,14 +60,10 @@ function mapZonas(eventType, raw) {
   const idReserva = datos?.idReserva;
   if (!idReserva) return null;
 
-  const idConductor = raw?.idConductor || datos?.idConductor || fallbackConductorId();
-  if (!idConductor) return null;
-
   return {
     tipo: "RESERVA_EXPIRADA",
     severidad: "INFO",
     idEntidad: idReserva,
-    idConductor,
     contexto: { ...datos, motivo: raw.motivo },
     mensaje: `La reserva ${idReserva} ha expirado por tiempo.`,
   };
@@ -85,9 +71,6 @@ function mapZonas(eventType, raw) {
 
 // 3) postes.eventos (puede venir con envoltorio {tipo, datos} o plano)
 function mapPostes(eventType, data, raw) {
-  // Soportamos:
-  // - envoltorio: { tipo:"PosteNoDisponible", datos:{...PosteDTO...} }
-  // - o plano PosteDTO, donde inferimos por estado
   const evt = eventType || raw?.tipo || null;
 
   const idPoste = data?.idPoste || raw?.idPoste;
@@ -104,14 +87,10 @@ function mapPostes(eventType, data, raw) {
 
   if (!problematico) return null;
 
-  const idConductor = data?.idConductor || raw?.idConductor || fallbackConductorId();
-  if (!idConductor) return null;
-
   return {
     tipo: "POSTE_AVERIADO",
     severidad: "WARNING",
     idEntidad: idPoste,
-    idConductor,
     contexto: { evento: evt, ...data },
     mensaje: `Poste ${idPoste} no disponible (${evt || estado || "estado desconocido"}).`,
   };
@@ -168,9 +147,9 @@ async function handleRedisEvent(channel, payload) {
     await publishEvent("NotificacionActualizada", result.notif);
   }
 
-  // 4) Emitir por WebSocket al conductor
+  // 4) Emitir por WebSocket al panel admin (broadcast)
   const wsType = result.notifCreada ? "NOTIFICACION_CREADA" : "NOTIFICACION_ACTUALIZADA";
-  emitToConductor(result.notif.id_conductor, {
+  broadcast({
     type: wsType,
     data: {
       source: `redis:${channel}`,

@@ -5,8 +5,10 @@ const {
 } = require("../services/notificationsService");
 
 const { requireString, requireObject, allowEnum } = require("../middleware/validate");
-const { emitToConductor } = require("../ws/hub");
+const { broadcast } = require("../ws/hub");
 const { publishEvent } = require("../redis/publisher");
+const { listAllNotificaciones } = require("../repositories/notificacionesRepository");
+const { getAlertaById } = require("../repositories/alertasRepository");
 
 async function postEvento(req, res, next) {
   try {
@@ -15,33 +17,30 @@ async function postEvento(req, res, next) {
     requireString(b, "tipo");
     requireString(b, "severidad");
     requireString(b, "idEntidad");
-    requireString(b, "idConductor");
+
     requireString(b, "mensaje");
     requireObject(b, "contexto");
 
     allowEnum(b, "severidad", ["INFO", "WARNING", "CRITICAL"]);
-    // Si quieres validar tipo_alerta (enum), añade allowEnum(b,"tipo",[...])
 
     const result = await procesarEvento({
       tipo: b.tipo,
       severidad: b.severidad,
       idEntidad: b.idEntidad,
-      idConductor: b.idConductor,
       contexto: b.contexto ?? {},
       mensaje: b.mensaje,
     });
 
     const status = result.notifCreada ? 201 : 200;
 
-    // Location cuando se crea una notificación nueva
     if (result.notifCreada && result.notif?.id_notificacion) {
       res.setHeader("Location", `/api/notificaciones/${result.notif.id_notificacion}`);
     }
 
     const eventType = result.notifCreada ? "NOTIFICACION_CREADA" : "NOTIFICACION_ACTUALIZADA";
 
-    // Emitir evento al conductor vía WebSocket
-    emitToConductor(result.notif.id_conductor, {
+    // Emitir evento al panel admin vía WebSocket (broadcast)
+    broadcast({
       type: eventType,
       data: {
         alerta: result.alerta,
@@ -80,9 +79,11 @@ async function postAck(req, res, next) {
       return res.status(404).json({ error: "NOT_FOUND", message: "Notificación no encontrada" });
     }
 
-    emitToConductor(result.id_conductor, {
+    const alerta = await getAlertaById(result.id_alerta);
+
+    broadcast({
       type: "NOTIFICACION_ACK",
-      data: { notificacion: result },
+      data: { notificacion: result, alerta },
     });
 
     await publishEvent("NotificacionActualizada", result);
@@ -102,9 +103,11 @@ async function postResolver(req, res, next) {
       return res.status(404).json({ error: "NOT_FOUND", message: "Notificación no encontrada" });
     }
 
-    emitToConductor(result.id_conductor, {
+    const alerta = await getAlertaById(result.id_alerta);
+
+    broadcast({
       type: "NOTIFICACION_RESUELTA",
-      data: { notificacion: result },
+      data: { notificacion: result, alerta },
     });
 
     await publishEvent("NotificacionActualizada", result);
@@ -115,4 +118,14 @@ async function postResolver(req, res, next) {
   }
 }
 
-module.exports = { postEvento, postAck, postResolver };
+async function getAll(req, res, next) {
+  try {
+    const estado = req.query.estado || null;
+    const rows = await listAllNotificaciones(estado);
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { postEvento, postAck, postResolver, getAll };

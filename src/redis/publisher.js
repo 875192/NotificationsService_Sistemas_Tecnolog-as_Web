@@ -35,4 +35,4 @@ async function stopPublisher() {
   }
 }
 
-module.exports = { publishEvent, stopPublisher };
+module.exports = { getPublisher, publishEvent, stopPublisher };

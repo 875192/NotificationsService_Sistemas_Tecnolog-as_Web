@@ -10,13 +10,13 @@ async function findNotificacionPendienteByDedupKey(dedupKey) {
   return rows[0] ?? null;
 }
 
-async function createNotificacion({ idAlerta, idConductor, mensaje, dedupKey }) {
+async function createNotificacion({ idAlerta, mensaje, dedupKey }) {
   const q = `
-    INSERT INTO notificaciones (id_alerta, id_conductor, mensaje, dedup_key)
-    VALUES ($1, $2, $3, $4)
+    INSERT INTO notificaciones (id_alerta, mensaje, dedup_key)
+    VALUES ($1, $2, $3)
     RETURNING *;
   `;
-  const { rows } = await pool.query(q, [idAlerta, idConductor, mensaje, dedupKey]);
+  const { rows } = await pool.query(q, [idAlerta, mensaje, dedupKey]);
   return rows[0];
 }
 
@@ -50,11 +50,20 @@ async function getNotificacionById(idNotificacion) {
   return rows[0] ?? null;
 } 
 
-async function listNotificacionesByConductor(idConductor, estado = null) {
+
+
+async function listAllNotificaciones(estado = null) {
   const q = estado
-    ? `SELECT * FROM notificaciones WHERE id_conductor=$1 AND estado=$2::estado_notificacion ORDER BY fecha_actualizacion_notificacion DESC`
-    : `SELECT * FROM notificaciones WHERE id_conductor=$1 ORDER BY fecha_actualizacion_notificacion DESC`;
-  const params = estado ? [idConductor, estado] : [idConductor];
+    ? `SELECT n.*, a.tipo AS tipo_alerta, a.severidad, a.id_entidad
+       FROM notificaciones n
+       JOIN alertas a ON a.id_alerta = n.id_alerta
+       WHERE n.estado = $1::estado_notificacion
+       ORDER BY n.fecha_creacion_notificacion DESC`
+    : `SELECT n.*, a.tipo AS tipo_alerta, a.severidad, a.id_entidad
+       FROM notificaciones n
+       JOIN alertas a ON a.id_alerta = n.id_alerta
+       ORDER BY n.fecha_creacion_notificacion DESC`;
+  const params = estado ? [estado] : [];
   const { rows } = await pool.query(q, params);
   return rows;
 }
@@ -65,5 +74,5 @@ module.exports = {
   updateNotificacionMensaje,
   setEstadoNotificacion,
   getNotificacionById,
-  listNotificacionesByConductor,
+  listAllNotificaciones,
 };

@@ -19,8 +19,8 @@ function puedeTransicionar(estadoActual, estadoDestino) {
 
 // ─── Deduplicación ───
 // Clave única para detectar notificaciones equivalentes.
-function buildDedupKey({ tipo, idEntidad, idConductor }) {
-  return `${tipo}:${idEntidad}:${idConductor}`;
+function buildDedupKey({ tipo, idEntidad }) {
+  return `${tipo}:${idEntidad}`;
 }
 
 module.exports = {
