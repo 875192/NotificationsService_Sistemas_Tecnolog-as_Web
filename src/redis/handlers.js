@@ -29,7 +29,7 @@ async function getConductorIdByVehiculo(idVehiculo) {
     const res = await fetch(`${VEHICULO_SERVICE_URL}/api/vehículos/${idVehiculo}`);
     if (!res.ok) return null;
     const body = await res.json();
-    return body?.conductorId ?? body?.idConductor ?? null;
+    return body?.idConductor ?? null;
   } catch {
     return null;
   }
