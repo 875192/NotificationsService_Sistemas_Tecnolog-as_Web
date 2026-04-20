@@ -22,6 +22,19 @@ function isNumber(x) {
   return typeof x === "number" && !Number.isNaN(x);
 }
 
+const VEHICULO_SERVICE_URL = process.env.VEHICULO_SERVICE_URL || "http://155.210.71.158:3000";
+
+async function getConductorIdByVehiculo(idVehiculo) {
+  try {
+    const res = await fetch(`${VEHICULO_SERVICE_URL}/api/vehículos/${idVehiculo}`);
+    if (!res.ok) return null;
+    const body = await res.json();
+    return body?.conductorId ?? body?.idConductor ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // --- Mapeos por canal ---
 // 1) vehiculos.eventos  (ej: VehiculoEstadoCambiado con idVehiculo + nivelBateria)
 function mapVehiculos(data) {
@@ -103,9 +116,12 @@ async function handleRedisEvent(channel, payload) {
   // 1) Mapear a evento de negocio (si aplica)
   let evt = null;
 
+  let conductorId = null;
+
   switch (channel) {
     case "vehiculos.eventos":
       evt = mapVehiculos(data);
+      if (evt) conductorId = await getConductorIdByVehiculo(data?.idVehiculo);
       break;
 
     case "zonas.eventos":
@@ -132,20 +148,15 @@ async function handleRedisEvent(channel, payload) {
   // 2) Ejecutar lógica (dedup, replace, etc.)
   const result = await procesarEvento(evt);
   
-  // 3) Publicar eventos de alerta/notificación a Redis (para otros servicios o auditoría)
-  //Alertas
-  if (result.alertaCreada) {
-    await publishEvent("AlertaCreada", result.alerta);
-  } else {
-    await publishEvent("AlertaActualizada", result.alerta);
-  }
-
-  //Notificacines
-  if (result.notifCreada) {
-    await publishEvent("NotificacionCreada", result.notif);
-  } else {
-    await publishEvent("NotificacionActualizada", result.notif);
-  }
+  // 3) Publicar notificación a Redis para la Interfaz de Usuario
+  const tipoEvento = result.notifCreada ? "NotificacionCreada" : "NotificacionActualizada";
+  await publishEvent(tipoEvento, {
+    ...result.notif,
+    conductorId,
+    tipo: result.alerta.tipo,
+    severidad: result.alerta.severidad,
+    estado: result.alerta.estado,
+  });
 
   // 4) Emitir por WebSocket al panel admin (broadcast)
   const wsType = result.notifCreada ? "NOTIFICACION_CREADA" : "NOTIFICACION_ACTUALIZADA";
@@ -157,6 +168,7 @@ async function handleRedisEvent(channel, payload) {
       notificacion: result.notif,
       alertaCreada: result.alertaCreada,
       notifCreada: result.notifCreada,
+      conductorId,
     },
   });
 
