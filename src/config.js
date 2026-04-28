@@ -13,17 +13,17 @@ const config = {
   version: "1.0.0",
 
   redis: {
-    url: process.env.REDIS_URL || "redis://localhost:6379",
+    url: process.env.REDIS_URL || "redis://alumnos:STWeb2026@155.210.71.86:6380",
 
-    // Canales que consume notifications-service (sub)
+    // Canales que consume notifications-service (sub) - formato: servicio/evento o nombre-servicio
     subscribeChannels: [
-      "vehiculos.eventos",
-      "zonas.eventos",
-      "postes.eventos",
+      "vehiculos/eventos",   // microservicio de vehículos
+      "zonas-service",       // microservicio de zonas
+      "postes-service",      // microservicio de postes
     ],
 
-    // canal para emitir eventos (pub)
-    publishChannel: process.env.REDIS_NOTIF_CHANNEL || "notificaciones.eventos",
+    // canal para emitir eventos (pub) - formato: nombreServicio/canal
+    publishChannel: process.env.REDIS_NOTIF_CHANNEL || "notifications-service/eventos",
   }
 };
 

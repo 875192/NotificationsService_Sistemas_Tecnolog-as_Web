@@ -11,7 +11,7 @@ Notifications and alerts microservice for an electric vehicle simulator. It rece
 ### Run (Docker — the only supported mode)
 ```bash
 docker-compose up -d --build
-# Service exposed at http://localhost:3001, WS at ws://localhost:3001/ws
+# Service exposed at http://localhost:3000, WS at ws://localhost:3000/ws
 ```
 
 ### Other scripts
@@ -93,4 +93,4 @@ Schema is auto-applied on first container start via `db/init/01_schema.sql`.
 
 ### Admin frontend
 
-A standalone HTML file at `api/paneladministrador.html`. Open it directly in a browser (or via Live Server). It connects to the WebSocket at `ws://localhost:3001/ws` and listens for `NOTIFICACION_CREADA` / `NOTIFICACION_ACTUALIZADA` events.
+A standalone HTML file at `api/paneladministrador.html`. Open it directly in a browser (or via Live Server). It connects to the WebSocket at `ws://localhost:3000/ws` and listens for `NOTIFICACION_CREADA` / `NOTIFICACION_ACTUALIZADA` events.
