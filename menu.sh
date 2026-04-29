@@ -3,7 +3,7 @@
 
 REDIS_URL="redis://alumnos:STWeb2026@155.210.71.86:6380"
 SERVICE_URL="http://localhost:3000"
-VEHICULOS_CHANNEL="vehiculos.eventos"
+VEHICULOS_CHANNEL="vehiculos/eventos"
 NOTIF_CHANNEL="notifications-service/eventos"
 DB_CONTAINER="notifications-postgres"
 DB_NAME="notifications_db"
