@@ -36,7 +36,7 @@ async function getConductorIdByVehiculo(idVehiculo) {
 }
 
 // --- Mapeos por canal ---
-// 1) vehiculos/eventos  (ej: VehiculoEstadoCambiado con idVehiculo + nivelBateria)
+// 1) vehiculos.eventos  (ej: VehiculoEstadoCambiado con idVehiculo + nivelBateria)
 function mapVehiculos(data) {
   const idVehiculo = data?.idVehiculo;
   const nivelBateria = data?.nivelBateria;
@@ -64,7 +64,7 @@ function mapVehiculos(data) {
   };
 }
 
-// 2) zonas/eventos (formato envoltorio + motivo en raw, ej RESERVA_FINALIZADA)
+// 2) zonas.eventos (formato envoltorio + motivo en raw, ej RESERVA_FINALIZADA)
 function mapZonas(eventType, raw) {
   if (eventType !== "RESERVA_FINALIZADA") return null;
   if (raw?.motivo !== "EXPIRACION_TIEMPO") return null;
@@ -82,7 +82,7 @@ function mapZonas(eventType, raw) {
   };
 }
 
-// 3) postes/eventos (puede venir con envoltorio {tipo, datos} o plano)
+// 3) postes.eventos (puede venir con envoltorio {tipo, datos} o plano)
 function mapPostes(eventType, data, raw) {
   const evt = eventType || raw?.tipo || null;
 

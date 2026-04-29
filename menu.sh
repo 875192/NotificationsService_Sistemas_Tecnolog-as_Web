@@ -102,17 +102,30 @@ EOF
   echo -e "\n${CYAN}⏳ Esperando 2s para que el servicio procese el evento...${NC}"
   sleep 2
 
-  echo -e "\n${CYAN}🗄  Verificando en la base de datos...${NC}"
+  echo -e "\n${CYAN}🗄  Verificando en la base de datos (vía REST API)...${NC}"
 
-  echo -e "\n${BOLD}— Alertas activas para ${TEST_VEHICULO_ID}:${NC}"
-  docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" \
-    -c "SELECT id_alerta, tipo, severidad, estado, id_entidad, created_at FROM alertas WHERE id_entidad = '${TEST_VEHICULO_ID}' ORDER BY created_at DESC LIMIT 5;" \
-    2>/dev/null || echo -e "${RED}  ✘ No se pudo conectar a la BD. ¿Está el contenedor postgres arrancado?${NC}"
+  echo -e "\n${BOLD}— Alertas para ${TEST_VEHICULO_ID}:${NC}"
+  ALERTAS=$(curl -sf "${SERVICE_URL}/api/alertas" 2>/dev/null)
+  if [ $? -ne 0 ] || [ -z "$ALERTAS" ]; then
+    echo -e "${RED}  ✘ No se pudo contactar con ${SERVICE_URL}/api/alertas. ¿Está el servicio arrancado?${NC}"
+  else
+    echo "$ALERTAS" | grep -o "{[^}]*\"${TEST_VEHICULO_ID}\"[^}]*}" | while read -r line; do
+      echo "  $line"
+    done
+    echo "$ALERTAS" | grep -q "$TEST_VEHICULO_ID" \
+      && echo -e "${GREEN}  ✔ Alerta encontrada en BD${NC}" \
+      || echo -e "${YELLOW}  ⚠ No se encontró alerta para ${TEST_VEHICULO_ID} — puede que el evento no haya sido procesado${NC}"
+  fi
 
   echo -e "\n${BOLD}— Notificaciones para ${TEST_VEHICULO_ID}:${NC}"
-  docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" \
-    -c "SELECT n.id_notificacion, n.estado, n.mensaje, n.created_at FROM notificaciones n JOIN alertas a ON n.id_alerta = a.id_alerta WHERE a.id_entidad = '${TEST_VEHICULO_ID}' ORDER BY n.created_at DESC LIMIT 5;" \
-    2>/dev/null || echo -e "${RED}  ✘ No se pudo conectar a la BD.${NC}"
+  NOTIFS=$(curl -sf "${SERVICE_URL}/api/notificaciones" 2>/dev/null)
+  if [ $? -ne 0 ] || [ -z "$NOTIFS" ]; then
+    echo -e "${RED}  ✘ No se pudo contactar con ${SERVICE_URL}/api/notificaciones.${NC}"
+  else
+    echo "$NOTIFS" | grep -q "$TEST_VEHICULO_ID" \
+      && echo -e "${GREEN}  ✔ Notificación encontrada en BD${NC}" \
+      || echo -e "${YELLOW}  ⚠ No se encontró notificación para ${TEST_VEHICULO_ID}${NC}"
+  fi
 
   echo -e "\n${GREEN}✔ Prueba completada. Si aparecen filas arriba, el flujo funciona.${NC}"
   echo -e "  Para ver la notificación en Redis, usa la opción ${YELLOW}4${NC}."
