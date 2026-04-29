@@ -15,15 +15,13 @@ const config = {
   redis: {
     url: process.env.REDIS_URL || "redis://alumnos:STWeb2026@155.210.71.86:6380",
 
-    // Canales que consume notifications-service (sub) - formato: servicio/evento o nombre-servicio
     subscribeChannels: [
-      "vehiculos/eventos",   // microservicio de vehículos
-      "zonas-service",       // microservicio de zonas
-      "postes-service",      // microservicio de postes
+      "vehiculos.eventos",
+      "zonas.eventos",
+      "postes.eventos",
     ],
 
-    // canal para emitir eventos (pub) - formato: nombreServicio/canal
-    publishChannel: process.env.REDIS_NOTIF_CHANNEL || "notifications-service/eventos",
+    publishChannel: process.env.REDIS_NOTIF_CHANNEL || "notificaciones.eventos",
   }
 };
 
