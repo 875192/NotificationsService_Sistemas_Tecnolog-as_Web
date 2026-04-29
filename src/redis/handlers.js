@@ -119,16 +119,16 @@ async function handleRedisEvent(channel, payload) {
   let conductorId = null;
 
   switch (channel) {
-    case "vehiculos.eventos":
+    case "vehiculos/eventos":
       evt = mapVehiculos(data);
       if (evt) conductorId = await getConductorIdByVehiculo(data?.idVehiculo);
       break;
 
-    case "zonas.eventos":
+    case "zonas-service":
       evt = mapZonas(eventType, raw);
       break;
 
-    case "postes.eventos":
+    case "postes-service":
       // si viene envoltorio, data=payload.datos; si plano, data=payload
       evt = mapPostes(eventType, data, raw);
       break;
