@@ -32,6 +32,7 @@ menu() {
   echo -e "  ${YELLOW}2${NC}) Prueba de health"
   echo -e "  ${YELLOW}3${NC}) Inyectar vehículo en Redis → verificar en BD"
   echo -e "  ${YELLOW}4${NC}) Escuchar canal ${NOTIF_CHANNEL}"
+  echo -e "  ${YELLOW}e${NC}) Limpiar base de datos"
   echo -e "  ${YELLOW}q${NC}) Salir"
   echo ""
   read -rp "Opción: " OPT
@@ -131,6 +132,28 @@ EOF
   echo -e "  Para ver la notificación en Redis, usa la opción ${YELLOW}4${NC}."
 }
 
+# ── E: Limpiar base de datos ─────────────────────────────────────
+limpiar_bd() {
+  echo -e "\n${RED}⚠  Esto borrará TODAS las alertas y notificaciones de la BD.${NC}"
+  read -rp "¿Seguro? (s/N): " CONFIRM
+  if [[ ! "$CONFIRM" =~ ^[sS]$ ]]; then
+    echo -e "${YELLOW}Cancelado.${NC}"
+    return
+  fi
+
+  echo -e "\n${CYAN}🗑  Limpiando base de datos...${NC}"
+  docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" \
+    -c "TRUNCATE notificaciones, alertas RESTART IDENTITY CASCADE;" 2>/dev/null \
+    && echo -e "${GREEN}✔ Base de datos limpiada.${NC}" \
+    || {
+      echo -e "${YELLOW}  docker exec falló, intentando con sudo...${NC}"
+      sudo docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" \
+        -c "TRUNCATE notificaciones, alertas RESTART IDENTITY CASCADE;" \
+        && echo -e "${GREEN}✔ Base de datos limpiada.${NC}" \
+        || echo -e "${RED}✘ No se pudo limpiar la BD. ¿Está el contenedor postgres arrancado?${NC}"
+    }
+}
+
 # ── 4: Escuchar canal de notificaciones ──────────────────────────
 escuchar_notificaciones() {
   echo -e "\n${CYAN}📡 Suscribiéndose a ${NOTIF_CHANNEL}...${NC}"
@@ -148,6 +171,7 @@ while true; do
     2) health ;;
     3) inyectar_vehiculo ;;
     4) escuchar_notificaciones ;;
+    e|E) limpiar_bd ;;
     q|Q) echo -e "\n${CYAN}Hasta luego.${NC}\n"; exit 0 ;;
     *) echo -e "${RED}Opción no válida.${NC}" ;;
   esac
